@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { EctdNode, NodeType, UserRole, User, Version, ValidationResult, LifecycleOperation, EctdMetadata, ModuleId } from '../types';
 import { validateEctdNode } from '../services/validationService';
-import { FileText, Calendar, Tag, ShieldCheck, AlertTriangle, History, RotateCcw, AlertCircle, CheckCircle, Info, Upload, FileCode, FileImage, FileType, Database, GitCommit, Hash, Save, Loader2, XCircle, Check, Copy, Globe, FileStack, Plus, BookOpen } from 'lucide-react';
+import { FileText, Calendar, Tag, ShieldCheck, AlertTriangle, History, RotateCcw, AlertCircle, CheckCircle, Info, Upload, FileCode, FileImage, FileType, Database, GitCommit, Hash, Save, Loader2, XCircle, Check, Copy, Globe, FileStack, Plus, BookOpen, ClipboardList } from 'lucide-react';
 import { calculateMockMd5 } from '../services/xmlGeneratorService';
 
 interface DocumentViewerProps {
@@ -97,6 +97,9 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ node, onAnalyze, onSumm
   const [showTagModal, setShowTagModal] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [selectedTag, setSelectedTag] = useState(STF_FILE_TAGS[0].value);
+
+  // Audit Modal State
+  const [showAuditModal, setShowAuditModal] = useState(false);
 
   // Toast State
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
@@ -592,6 +595,13 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ node, onAnalyze, onSumm
         
         <div className="flex items-center gap-2">
            <button 
+             onClick={() => setShowAuditModal(true)}
+             className="flex items-center gap-2 px-3 py-1.5 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-blue-600 rounded text-sm font-medium transition-colors shadow-sm"
+            >
+             <ClipboardList className="w-4 h-4" />
+             Review History
+           </button>
+           <button 
              onClick={onAnalyze}
              disabled={isProcessing}
              className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-sm font-medium transition-colors disabled:opacity-50"
@@ -968,6 +978,83 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ node, onAnalyze, onSumm
                     </div>
                 </div>
              </div>
+        )}
+
+        {/* Audit Trail Modal */}
+        {showAuditModal && (
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[80vh]">
+                    <div className="p-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center shrink-0">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <ClipboardList className="w-5 h-5 text-blue-600" /> Review & Approval History
+                            </h3>
+                            <p className="text-sm text-slate-500 mt-1">Audit trail for {node.title}</p>
+                        </div>
+                        <button onClick={() => setShowAuditModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                            <XCircle className="w-6 h-6" />
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto p-0">
+                        <table className="w-full text-left text-sm border-collapse">
+                            <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th className="px-6 py-3 whitespace-nowrap">Date & Time</th>
+                                    <th className="px-6 py-3 whitespace-nowrap">User</th>
+                                    <th className="px-6 py-3 w-1/2">Action / Comments</th>
+                                    <th className="px-6 py-3 whitespace-nowrap">Version</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {node.history?.map((entry, idx) => (
+                                    <tr key={idx} className="hover:bg-blue-50/50 transition-colors group">
+                                        <td className="px-6 py-4 text-slate-600 whitespace-nowrap align-top font-mono text-xs">
+                                            {entry.timestamp}
+                                        </td>
+                                        <td className="px-6 py-4 align-top">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 group-hover:bg-white group-hover:border-blue-200 group-hover:text-blue-600 transition-colors">
+                                                    {entry.userName.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-slate-700">{entry.userName}</p>
+                                                    <p className="text-[10px] text-slate-400">ID: {entry.userId}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-700 align-top leading-relaxed">
+                                            {entry.description}
+                                        </td>
+                                        <td className="px-6 py-4 align-top">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200 group-hover:border-blue-300">
+                                                v{entry.version}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {(!node.history || node.history.length === 0) && (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic bg-slate-50/30">
+                                            <History className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                            No history records found for this document.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end shrink-0">
+                        <button 
+                            onClick={() => setShowAuditModal(false)} 
+                            className="px-5 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium shadow-sm transition-all"
+                        >
+                            Close Log
+                        </button>
+                    </div>
+                </div>
+            </div>
         )}
 
       </div>
